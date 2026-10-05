@@ -1,6 +1,8 @@
 /*
- * Normal build (env:attiny85): milestone 2 "hello" beep every 2 s, until the
- * real schedule arrives in milestone 4.
+ * Normal build (env:attiny85): the office schedule.
+ *   power-on -> QUIET_PERIOD_S of silence -> cricket-ish activation ->
+ *   random INTERVAL_MIN_S..INTERVAL_MAX_S of silence -> activation -> ...
+ *   Waits are spent in power-down sleep.
  *
  * Test build (env:attiny85_test, TEST_MODE=1), repeating rounds of:
  *   1. beep-length ladder: 5, 10, 15, 20, 30 ms, to find the shortest beep
@@ -14,21 +16,28 @@
 #include "config.h"
 #include "pattern.h"
 #include "rng.h"
+#include "sleep.h"
 #include "sound.h"
 
 #ifndef TEST_MODE
 #define TEST_MODE 0
 #endif
 
-/* Boot counter: a different random sequence after every power-up.
- * (Clock-jitter entropy is added in milestone 4.) */
+/* Boot counter: guarantees a different sequence after every power-up. */
 static uint32_t EEMEM ee_boot_count;
 
-static void seed_from_boot_count(void)
+static void seed_rng(void)
 {
     uint32_t n = eeprom_read_dword(&ee_boot_count) + 1;
     eeprom_update_dword(&ee_boot_count, n);
-    rng_seed(n * 2654435761UL);     /* spread small counts over all bits */
+    rng_seed(rng_mix32(n) ^ rng_mix32(sleep_jitter_entropy()));
+}
+
+static void play_cricket(void)
+{
+    pattern_t p;
+    pattern_cricket(&p);
+    sound_play(&p);
 }
 
 #if TEST_MODE
@@ -43,9 +52,7 @@ static void test_round(void)
     delay_ms(TEST_CRICKET_GAP_MS);
 
     for (uint8_t i = 0; i < TEST_CRICKET_REPEATS; i++) {
-        pattern_t p;
-        pattern_cricket(&p);
-        sound_play(&p);
+        play_cricket();
         delay_ms(TEST_CRICKET_GAP_MS);
     }
 }
@@ -59,7 +66,11 @@ int main(void)
      * 8 MHz / 8 = 1 MHz. avr-libc does the timed CLKPR sequence in asm. */
     clock_prescale_set(clock_div_1);
 
-    seed_from_boot_count();
+    ADCSRA = 0;                 /* ADC unused */
+    power_adc_disable();
+    power_usi_disable();
+
+    seed_rng();
 
 #if TEST_MODE
     delay_ms(TEST_START_DELAY_MS);
@@ -68,9 +79,10 @@ int main(void)
         delay_ms(TEST_ROUND_GAP_MS);
     }
 #else
+    sleep_seconds(QUIET_PERIOD_S);
     for (;;) {
-        sound_beep(HELLO_BEEP_MS);
-        delay_ms(HELLO_PERIOD_MS - HELLO_BEEP_MS);
+        play_cricket();
+        sleep_seconds(rng_range(INTERVAL_MIN_S, INTERVAL_MAX_S));
     }
 #endif
 }

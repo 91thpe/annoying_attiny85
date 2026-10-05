@@ -63,6 +63,38 @@ static void test_range_uniform(void)
     CHECK(chi < 27.9);
 }
 
+static void test_interval(void)
+{
+    /* Every interval stays in range and both ends are reachable. */
+    int seen_min = 0, seen_max = 0;
+    rng_seed(rng_mix32(1));
+    for (int i = 0; i < 200000; i++) {
+        uint32_t v = rng_range(INTERVAL_MIN_S, INTERVAL_MAX_S);
+        CHECK(v >= INTERVAL_MIN_S && v <= INTERVAL_MAX_S);
+        seen_min |= v == INTERVAL_MIN_S;
+        seen_max |= v == INTERVAL_MAX_S;
+    }
+    CHECK(seen_min && seen_max);
+    CHECK(QUIET_PERIOD_S >= 60);
+}
+
+static void test_seed_mix(void)
+{
+    /* Consecutive boot counts must give different first intervals often:
+     * at most a handful of repeats over 1000 boots (601 possible values). */
+    int repeats = 0;
+    uint32_t prev = 0;
+    for (uint32_t boot = 1; boot <= 1000; boot++) {
+        rng_seed(rng_mix32(boot));
+        uint32_t v = rng_range(INTERVAL_MIN_S, INTERVAL_MAX_S);
+        if (boot > 1 && v == prev)
+            repeats++;
+        prev = v;
+        CHECK(rng_mix32(boot) != rng_mix32(boot + 1));
+    }
+    CHECK(repeats < 10);
+}
+
 static void test_jitter(void)
 {
     rng_seed(42);
@@ -146,6 +178,8 @@ int main(void)
     test_zero_seed();
     test_range_bounds();
     test_range_uniform();
+    test_interval();
+    test_seed_mix();
     test_jitter();
     test_cricket_shape();
     test_limit();

@@ -14,6 +14,12 @@
  * 1: pin LOW  = buzzer on (PNP high-side). */
 #define BUZZER_ACTIVE_LOW   0
 
+/* ---- Schedule (normal build) ------------------------------------------ */
+
+#define QUIET_PERIOD_S      600     /* silence after power-on */
+#define INTERVAL_MIN_S      300     /* gap between activations, counted */
+#define INTERVAL_MAX_S      900     /*   from the end of the previous one */
+
 /* ---- Hard limits (enforced in code, whatever the tables say) ----------- */
 
 #define TONE_MAX_MS         500     /* longest single beep */
@@ -27,7 +33,8 @@
 #define CRICKET_CHIRPS_MAX      3
 #define CRICKET_SYL_MIN         3       /* syllables per chirp */
 #define CRICKET_SYL_MAX         5
-#define CRICKET_SYL_ON_MS       15      /* beep length */
+#define CRICKET_SYL_ON_MS       20      /* beep length (untested below 20:
+                                           active buzzers start slowly) */
 #define CRICKET_SYL_ON_JIT_MS   2
 #define CRICKET_SYL_OFF_MS      18      /* gap between beeps in a chirp */
 #define CRICKET_SYL_OFF_JIT_MS  3
@@ -42,10 +49,5 @@
 #define TEST_CRICKET_GAP_MS     4000    /* between them */
 #define TEST_ROUND_GAP_MS       8000    /* before the next round */
 /* The ladder itself is in main.c: 5, 10, 15, 20, 30 ms beeps. */
-
-/* ---- Milestone 2 "hello" (normal build, until milestone 4) ------------- */
-
-#define HELLO_BEEP_MS       100     /* beep length */
-#define HELLO_PERIOD_MS     2000    /* beep start to beep start */
 
 #endif

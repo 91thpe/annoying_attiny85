@@ -10,6 +10,9 @@
 /* Seed the generator. A zero seed is replaced (xorshift must not be 0). */
 void rng_seed(uint32_t seed);
 
+/* Mix a 32-bit value so nearby inputs give unrelated outputs (seeding). */
+uint32_t rng_mix32(uint32_t x);
+
 /* Next raw 32-bit value. */
 uint32_t rng_next(void);
 

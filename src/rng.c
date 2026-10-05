@@ -7,6 +7,17 @@ void rng_seed(uint32_t seed)
     state = seed ? seed : 2463534242UL;
 }
 
+uint32_t rng_mix32(uint32_t x)
+{
+    /* MurmurHash3 fmix32 finalizer */
+    x ^= x >> 16;
+    x *= 0x85ebca6bUL;
+    x ^= x >> 13;
+    x *= 0xc2b2ae35UL;
+    x ^= x >> 16;
+    return x;
+}
+
 uint32_t rng_next(void)
 {
     /* Marsaglia xorshift32, shifts 13/17/5 */

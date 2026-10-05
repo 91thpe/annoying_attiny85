@@ -257,8 +257,9 @@ ArduinoISP instead of the Mega. Differences from the handoff's §8:
    a factory-fresh chip. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
    and polarity.
 3. Cricket-ish profile + syllable-length ladder in `TEST_MODE`
-   (`env:attiny85_test`). Code done, host tests pass; waiting for the
-   owner's listening test.
+   (`env:attiny85_test`). Code done, host tests pass. Owner chose to skip
+   the listening test; beep length raised from 15 to 20 ms as a precaution.
 4. Full schedule build (quiet period, random intervals, seeding,
-   sleep).
+   sleep). Code done (`env:attiny85`), host tests pass; waiting for the
+   owner's bench run.
 5. README (ASCII wiring, programming, build/flash, tuning).
