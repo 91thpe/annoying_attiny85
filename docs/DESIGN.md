@@ -175,19 +175,18 @@ Transistor: the owner's TO-92 parts marked **A42** = MPSA42 (B331 is a lot
 Preferred over the 2N3906 because it keeps the logic active-HIGH, which
 matches the original plan.
 
-    5 V ───────────────┬──────────┐
-                       │          │
-                      (+)      1N4148
-                   TDB05LFPN  (cathode to 5 V)
-                      (−)         │
-                       ├──────────┘
-                       │
-                       C
-    PB1 (pin 6) ─┬─ 1 kΩ ─B   MPSA42 (NPN)
-                 │         E
-               15 kΩ       │
-                 │         │
-    GND ─────────┴─────────┘
+    5 V ──────────────────────┐
+                              │
+                             (+)
+                          TDB05LFPN
+                             (−)
+                              │
+                              C
+    PB1 (pin 6) ─┬── 1 kΩ ──B   MPSA42 (NPN)
+                 │            E
+               15 kΩ          │
+                 │            │
+    GND ─────────┴────────────┘
 
 - PB1 **HIGH → buzzer on**, PB1 LOW → off. `BUZZER_ACTIVE_LOW 0`, idle
   level LOW.
@@ -196,9 +195,9 @@ matches the original plan.
 - 15 kΩ (anything 10–47 kΩ works) from PB1 to GND keeps the transistor off from reset until the
   firmware runs.
 - Buzzer sees about 5 V − 0.2…0.5 V ≈ 4.5–4.8 V, inside its 4–7 V range.
-- 1N4148 (or any small diode) across the buzzer, cathode to 5 V: cheap
-  insurance against the coil's switch-off spike. Internal protection in
-  the buzzer isn't confirmed.
+- **No flyback diode** (owner has none). Acceptable: the MPSA42 is rated
+  300 V V_CEO, far above any spike a 12 mm buzzer coil can produce. Add a
+  small diode across the buzzer (cathode to 5 V) if one turns up.
 - **Pinout:** MPSA42 in TO-92 is usually E-B-C (flat face toward you, legs
   down, left to right), but check the maker's datasheet or a meter's diode
   test (base is the common pin of both junctions). Mind the buzzer's (+)
