@@ -26,11 +26,12 @@
 #define ACTIVATION_MAX_MS   3000    /* longest whole activation */
 
 /* ---- Cricket-ish profile ----------------------------------------------- */
-/* An activation is 1-3 chirps; a chirp is 3-5 short beeps ("syllables").
+/* An activation is CHIRPS_MIN..MAX chirps (owner's choice: exactly one);
+ * a chirp is 3-5 short beeps ("syllables").
  * Each value gets random +/- jitter per beep so it never sounds mechanical. */
 
 #define CRICKET_CHIRPS_MIN      1
-#define CRICKET_CHIRPS_MAX      3
+#define CRICKET_CHIRPS_MAX      1
 #define CRICKET_SYL_MIN         3       /* syllables per chirp */
 #define CRICKET_SYL_MAX         5
 #define CRICKET_SYL_ON_MS       20      /* beep length (untested below 20:
