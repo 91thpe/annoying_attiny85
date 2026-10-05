@@ -10,7 +10,7 @@ Anything marked **VERIFY** has not been tested on hardware yet.
 |-----------|-------|--------|
 | Quiet period after power-on | 600 s | Owner |
 | Interval | uniform in [300, 900] s, counted from the end of the previous sound | Owner |
-| Fuses | Factory default, never touched (8 MHz RC, CKDIV8 on, BOD off) | Owner |
+| Fuses | Never written by this project. The owner's chip reads **L:E2 H:DF E:FF** (8 MHz RC, CKDIV8 already *off*, BOD off), so it was set up for 8 MHz before. The runtime `CLKPR` write handles both cases | Owner; read on the bench |
 | CPU clock | 8 MHz, set at runtime via `CLKPR` | Handoff §5.1 |
 | Buzzer | DB Products TDB05LFPN: bare 2-pin active magnetic buzzer, 5 V, 30 mA, 2300 Hz, 85 dBA. `BUZZER_PASSIVE = 0` | Owner; specs from distributor listings (see §6) |
 | Signal pin | PB1 (DIP pin 6), plain on/off GPIO | Handoff §5.2 |
