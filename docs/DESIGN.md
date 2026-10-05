@@ -10,10 +10,10 @@ Anything marked **VERIFY** has not been tested on hardware yet.
 |-----------|-------|--------|
 | Quiet period after power-on | 600 s | Owner |
 | Interval | uniform in [300, 900] s, counted from the end of the previous sound | Owner |
-| Fuses | Factory default, never touched (8 MHz RC, CKDIV8 on, BOD off) | Owner |
+| Fuses | Never written by this project. The owner's chip reads **L:E2 H:DF E:FF** (8 MHz RC, CKDIV8 already *off*, BOD off), so it was set up for 8 MHz before. The runtime `CLKPR` write handles both cases | Owner; read on the bench |
 | CPU clock | 8 MHz, set at runtime via `CLKPR` | Handoff §5.1 |
-| Buzzer | Passive, 3-wire module, `BUZZER_PASSIVE = 1` | Owner (polarity: see §6) |
-| Signal pin | PB1 / OC1A (DIP pin 6), Timer1 | Handoff §5.2 |
+| Buzzer | DB Products TDB05LFPN: bare 2-pin active magnetic buzzer, 5 V, 30 mA, 2300 Hz, 85 dBA. `BUZZER_PASSIVE = 0` | Owner; specs from distributor listings (see §6) |
+| Signal pin | PB1 (DIP pin 6), plain on/off GPIO | Handoff §5.2 |
 | First profile | Cricket-ish only | Handoff §4.2 |
 
 ## 2. Toolchain
@@ -60,6 +60,11 @@ Anything marked **VERIFY** has not been tested on hardware yet.
   on Windows, which isn't worth setting up for this).
 
 ## 3. Tone generation on Timer1
+
+> **Parked.** The owner switched to an active buzzer, so the firmware only
+> switches PB1 on and off. This section stays as the reference for the
+> `BUZZER_PASSIVE = 1` path if a passive piezo is used later. PB1 is kept
+> as the signal pin so that path stays open.
 
 ATtiny85 Timer1 runs from the system clock through a prescaler
 N ∈ {1, 2, 4, …, 16384} (`CS13:0`), with `OCR1C` as TOP.
@@ -133,60 +138,128 @@ PRNG: xorshift32 (state never zero). Ranges are drawn by rejection
 sampling: reject draws ≥ the largest multiple of the range, then take
 `%`. All of this goes in host-testable code.
 
-## 6. Open item: buzzer trigger polarity is not yet proven
+## 6. Buzzer: active TDB05LFPN, driven through an NPN
 
-The handoff says the module is "high-triggered" because it clicks when SIG
-goes to 5 V. **That test doesn't show which level energizes the coil.**
-A passive transducer clicks on *any* change in current, so a
-low-triggered module also clicks at that edge (the coil switching off).
+The first passive transducer turned out to have no driver (SIG wired
+straight to the transducer). Rather than settle piezo vs coil, the owner
+switched to an **active buzzer**. Consequences:
 
-This matters because many 3-pin passive modules drive the transducer
-through a **PNP transistor (often marked S8550 or 2TY), which makes them
-active-LOW**. If this module is active-LOW, the planned 10 kΩ pull-down and
-"idle LOW" firmware would hold the coil **on** permanently: constant
-current, a warm buzzer, and no sound.
+**What changes in the sound design**
 
-Two quick checks, either one is enough:
+- Pitch is fixed by the buzzer (typically ~2.3–2.7 kHz for a 12 mm part,
+  which happens to sit in the hard-to-locate band). No ±pitch variation, no
+  Tweet sweep, no `TEST_MODE` frequency sweep.
+- Variation comes from timing only: number of chirps, syllables per chirp,
+  on/off lengths, small jitter on each.
+- Profiles that still work: Cricket-ish (rhythm only), Lone chirp, Tick.
+- **Start-up time:** an active buzzer's oscillator needs a few ms to reach
+  full volume. 15 ms syllables may come out softer or smeared, and 1–2 ms
+  ticks may be inaudible. `TEST_MODE` will play a ladder of syllable lengths
+  (e.g. 5, 10, 15, 20, 30 ms) to find the shortest one that's clearly
+  audible.
 
-- **Read the transistor marking** on the module (SOT-23, three legs).
-  `S8550`, `2TY`, or `9012` = PNP → active-LOW. `S8050`, `J3Y`, or `9013`
-  = NPN → active-HIGH. No transistor at all (SIG goes straight to the
-  transducer through a resistor) → active-HIGH.
-- **Measure current:** meter in series with the module's VCC lead, 5 V
-  supply. Tie SIG to GND and read, then tie SIG to 5 V and read. The state
-  with tens of mA is "on". The other should read close to 0 mA.
+**The part:** DB Products TDB05LFPN (also sold as Jameco ValuePro). Per
+distributor listings (Jameco, Octopart; no manufacturer datasheet read):
+bare 2-pin active **magnetic** buzzer, 5 V rated (4–7 V range), **30 mA**,
+**2300 Hz**, 85 dBA. 2.3 kHz is inside the hard-to-locate band.
 
-Depending on the result:
+**Drive: low-side NPN, not straight from the pin.** 30 mA is under the
+pin's 40 mA absolute maximum but three times the 10 mA the output voltage
+is specified at, and it would run for the life of the device.
 
-| Result | Pull resistor on SIG | Idle level | Config |
-|--------|---------------------|------------|--------|
-| Active-HIGH | 10 kΩ to GND | LOW | `BUZZER_ACTIVE_LOW 0` |
-| Active-LOW | 10 kΩ to 5 V | HIGH | `BUZZER_ACTIVE_LOW 1` |
+Transistor: the owner's TO-92 parts marked **A42** = MPSA42 (B331 is a lot
+/ date code). High-voltage NPN, but fine as a 30 mA switch: hFE ≥ 40 at
+30 mA, V_CE(sat) ≤ 0.5 V at 20 mA / 2 mA base, 500 mA max
+([EIC datasheet](https://datasheet.lcsc.com/lcsc/2204021730_EIC-Semicon-MPSA42_C2978815.pdf),
+[onsemi](https://www.mouser.com/datasheet/2/149/MPSA42-196155.pdf)).
+Preferred over the 2N3906 because it keeps the logic active-HIGH, which
+matches the original plan.
 
-The firmware supports both through one constant, but the resistor on the
-breadboard has to match.
+    5 V ──────────────────────┐
+                              │
+                             (+)
+                          TDB05LFPN
+                             (−)
+                              │
+                              C
+    PB1 (pin 6) ─┬── 1 kΩ ──B   MPSA42 (NPN)
+                 │            E
+               15 kΩ          │
+                 │            │
+    GND ─────────┴────────────┘
+
+- PB1 **HIGH → buzzer on**, PB1 LOW → off. `BUZZER_ACTIVE_LOW 0`, idle
+  level LOW.
+- 1 kΩ base resistor: ≈ 4.3 mA base current, a forced gain of ~7 at
+  30 mA. Comfortably saturated even at the datasheet's minimum hFE.
+- 15 kΩ (anything 10–47 kΩ works) from PB1 to GND keeps the transistor off from reset until the
+  firmware runs.
+- Buzzer sees about 5 V − 0.2…0.5 V ≈ 4.5–4.8 V, inside its 4–7 V range.
+- **No flyback diode** (owner has none). Acceptable: the MPSA42 is rated
+  300 V V_CEO, far above any spike a 12 mm buzzer coil can produce. Add a
+  small diode across the buzzer (cathode to 5 V) if one turns up.
+- **Pinout:** MPSA42 in TO-92 is usually E-B-C (flat face toward you, legs
+  down, left to right), but check the maker's datasheet or a meter's diode
+  test (base is the common pin of both junctions). Mind the buzzer's (+)
+  marking.
+
+Fallback: the 2N3906 as a high-side switch also works, but inverts the
+logic (LOW = on).
+
+## 6b. Programmer: Arduino Micro, not the Mega
+
+The owner flashes with an **Arduino Micro** (ATmega32U4, 5 V) running
+ArduinoISP instead of the Mega. Differences from the handoff's §8:
+
+| Micro | ATtiny85 pin |
+|-------|--------------|
+| MO (MOSI) | 5 (PB0) |
+| MI (MISO) | 6 (PB1) |
+| SCK | 7 (PB2) |
+| D10 (target reset, per ArduinoISP) | 1 (PB5/RESET) |
+| 5V | 8 (VCC) |
+| GND | 4 (GND) |
+
+- The SPI lines are the pins marked MO / MI / SCK (or the 6-pin ICSP
+  header), **not** D11–D13.
+- **No 10 µF capacitor on the Micro's RESET.** The 32U4 has native USB and
+  doesn't auto-reset when the port opens (only on a 1200-baud "touch").
+- **Use `-c arduino`, not `-c stk500v1`.** The 32U4's USB serial only
+  transmits once the host asserts DTR. avrdude 6.3 on Windows with
+  `stk500v1` leaves DTR off, so the Micro never answers ("not in sync").
+  `-c arduino` sets DTR. On the 32U4 that doesn't reset the board (only a
+  1200-baud touch does). Arduino IDE's "Arduino as ISP (ATmega32U4)"
+  programmer uses the same protocol. Found on the owner's bench.
+- The Micro's COM port number can differ from the Mega's, and changes
+  while the Micro is in its bootloader. Use the port it shows while running
+  ArduinoISP.
 
 ## 7. Smaller risks (no action needed now)
 
 - **No brown-out detection** (fuses unchanged). A jumper that bounces or a
-  slow 5 V ramp could start the chip in a bad state. The 10 kΩ reset
+  slow 5 V ramp could start the chip in a bad state. The 15 kΩ reset
   pull-up, 100 nF decoupling, and 10 µF bulk capacitor mitigate this. If
   the device ever runs erratically after power-on, BOD at 2.7 V
   (`BODLEVEL = 101`) is the one fuse change worth considering. It's safe
   (doesn't affect ISP), but it's the owner's call.
 - **ISP speed:** the chip runs at 1 MHz until the firmware sets `CLKPR`.
-  ArduinoISP's default SPI clock is slow enough for a 1 MHz target.
-  **VERIFY** in milestone 2.
+  ArduinoISP's default `SPI_CLOCK` is 1 MHz / 6, chosen for exactly this
+  case (confirmed in the sketch source in `tools/arduinoisp/`).
 - **PB1 is MISO during programming.** Program on the Mega rig, then move
   the chip (or unplug SIG while flashing), as the handoff says.
 
 ## 8. Milestone plan
 
-1. Design notes (this file). Waiting for review.
-2. "Hello": `platformio.ini`, one 2.7 kHz beep every 2 s on PB1 via
-   Timer1. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
+1. Design notes (this file). Done.
+2. "Hello": `platformio.ini`, one short beep every 2 s on PB1. **Done**
+   (owner heard a beep every 2 s through the MPSA42). Caveat: this chip
+   already had CKDIV8 off, so the test does not prove the `CLKPR` write on
+   a factory-fresh chip. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
    and polarity.
-3. Cricket-ish profile + sweep in `TEST_MODE`.
+3. Cricket-ish profile + syllable-length ladder in `TEST_MODE`
+   (`env:attiny85_test`). Code done, host tests pass. Owner chose to skip
+   the listening test; beep length raised from 15 to 20 ms as a precaution.
 4. Full schedule build (quiet period, random intervals, seeding,
-   sleep).
-5. README (ASCII wiring, programming, build/flash, tuning).
+   sleep). **Done** (owner: first activation after ~10 min). Later changed
+   to one burst per activation at the owner's request.
+5. README (ASCII wiring, programming, build/flash, tuning). **Done.**
