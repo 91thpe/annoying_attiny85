@@ -239,8 +239,8 @@ ArduinoISP instead of the Mega. Differences from the handoff's §8:
   (`BODLEVEL = 101`) is the one fuse change worth considering. It's safe
   (doesn't affect ISP), but it's the owner's call.
 - **ISP speed:** the chip runs at 1 MHz until the firmware sets `CLKPR`.
-  ArduinoISP's default SPI clock is slow enough for a 1 MHz target.
-  **VERIFY** in milestone 2.
+  ArduinoISP's default `SPI_CLOCK` is 1 MHz / 6, chosen for exactly this
+  case (confirmed in the sketch source in `tools/arduinoisp/`).
 - **PB1 is MISO during programming.** Program on the Mega rig, then move
   the chip (or unplug SIG while flashing), as the handoff says.
 
