@@ -12,7 +12,7 @@ Anything marked **VERIFY** has not been tested on hardware yet.
 | Interval | uniform in [300, 900] s, counted from the end of the previous sound | Owner |
 | Fuses | Factory default, never touched (8 MHz RC, CKDIV8 on, BOD off) | Owner |
 | CPU clock | 8 MHz, set at runtime via `CLKPR` | Handoff §5.1 |
-| Buzzer | Passive, 3-wire module, `BUZZER_PASSIVE = 1` | Owner (polarity: see §6) |
+| Buzzer | Passive transducer wired straight to SIG/GND (no driver), active-HIGH, `BUZZER_PASSIVE = 1` | Owner (load type: see §6) |
 | Signal pin | PB1 / OC1A (DIP pin 6), Timer1 | Handoff §5.2 |
 | First profile | Cricket-ish only | Handoff §4.2 |
 
@@ -133,38 +133,38 @@ PRNG: xorshift32 (state never zero). Ranges are drawn by rejection
 sampling: reject draws ≥ the largest multiple of the range, then take
 `%`. All of this goes in host-testable code.
 
-## 6. Open item: buzzer trigger polarity is not yet proven
+## 6. Buzzer drive: polarity settled, load type still open
 
-The handoff says the module is "high-triggered" because it clicks when SIG
-goes to 5 V. **That test doesn't show which level energizes the coil.**
-A passive transducer clicks on *any* change in current, so a
-low-triggered module also clicks at that edge (the coil switching off).
+**Settled (owner, after inspecting the module):** the module has no
+driver. SIG goes straight to one leg of the 2-leg transducer, and GND to
+the other. VCC is unconnected. So PB1 drives the transducer directly:
 
-This matters because many 3-pin passive modules drive the transducer
-through a **PNP transistor (often marked S8550 or 2TY), which makes them
-active-LOW**. If this module is active-LOW, the planned 10 kΩ pull-down and
-"idle LOW" firmware would hold the coil **on** permanently: constant
-current, a warm buzzer, and no sound.
+- Active-HIGH. **10 kΩ pull-down from SIG to GND, idle level LOW**, as the
+  handoff planned. The `BUZZER_ACTIVE_LOW` switch is dropped.
+- It's passive: a steady 5 V gives one click, not a tone.
 
-Two quick checks, either one is enough:
+**Still open: piezo or magnetic?** This decides whether the pin can drive
+it directly. The ATtiny85's absolute maximum is 40 mA per pin (datasheet
+§21), and the output-high voltage is only specified up to 20 mA.
 
-- **Read the transistor marking** on the module (SOT-23, three legs).
-  `S8550`, `2TY`, or `9012` = PNP → active-LOW. `S8050`, `J3Y`, or `9013`
-  = NPN → active-HIGH. No transistor at all (SIG goes straight to the
-  transducer through a resistor) → active-HIGH.
-- **Measure current:** meter in series with the module's VCC lead, 5 V
-  supply. Tie SIG to GND and read, then tie SIG to 5 V and read. The state
-  with tens of mA is "on". The other should read close to 0 mA.
+| Type | DC resistance across the legs | Direct drive from PB1 |
+|------|-------------------------------|-----------------------|
+| Piezo (ceramic disc) | Open circuit (MΩ) | Fine. Add a 100–220 Ω series resistor to limit the charging spikes |
+| Magnetic (coil) | About 10–50 Ω | **Not allowed.** 5 V / 16 Ω = 300 mA. Needs a transistor |
 
-Depending on the result:
+**Check:** unplug the module and measure the resistance across the
+transducer's two legs (or SIG to GND on the module).
 
-| Result | Pull resistor on SIG | Idle level | Config |
-|--------|---------------------|------------|--------|
-| Active-HIGH | 10 kΩ to GND | LOW | `BUZZER_ACTIVE_LOW 0` |
-| Active-LOW | 10 kΩ to 5 V | HIGH | `BUZZER_ACTIVE_LOW 1` |
+A hint that it's piezo: it clicks only when SIG goes *to* 5 V. A coil would
+also click when the voltage is removed, because its current stops abruptly. A
+piezo left floating just stays charged. This isn't conclusive; the
+resistance measurement is.
 
-The firmware supports both through one constant, but the resistor on the
-breadboard has to match.
+If it turns out to be magnetic: drive it from a transistor (the spare
+2N3906 PNP works as a high-side switch, which makes the drive active-LOW
+again: 1 kΩ base resistor, emitter to 5 V, coil from collector to GND, and
+a flyback diode across the coil). Or swap in a piezo transducer, which is
+simpler.
 
 ## 7. Smaller risks (no action needed now)
 
