@@ -12,7 +12,7 @@ Anything marked **VERIFY** has not been tested on hardware yet.
 | Interval | uniform in [300, 900] s, counted from the end of the previous sound | Owner |
 | Fuses | Factory default, never touched (8 MHz RC, CKDIV8 on, BOD off) | Owner |
 | CPU clock | 8 MHz, set at runtime via `CLKPR` | Handoff §5.1 |
-| Buzzer | **Active** buzzer (own oscillator, fixed pitch), `BUZZER_PASSIVE = 0`. Bare part or module, and polarity: see §6 | Owner |
+| Buzzer | DB Products TDB05LFPN: bare 2-pin active magnetic buzzer, 5 V, 30 mA, 2300 Hz, 85 dBA. `BUZZER_PASSIVE = 0` | Owner; specs from distributor listings (see §6) |
 | Signal pin | PB1 (DIP pin 6), plain on/off GPIO | Handoff §5.2 |
 | First profile | Cricket-ish only | Handoff §4.2 |
 
@@ -138,7 +138,7 @@ PRNG: xorshift32 (state never zero). Ranges are drawn by rejection
 sampling: reject draws ≥ the largest multiple of the range, then take
 `%`. All of this goes in host-testable code.
 
-## 6. Buzzer: active, details still open
+## 6. Buzzer: active TDB05LFPN, driven through a PNP
 
 The first passive transducer turned out to have no driver (SIG wired
 straight to the transducer). Rather than settle piezo vs coil, the owner
@@ -158,27 +158,42 @@ switched to an **active buzzer**. Consequences:
   (e.g. 5, 10, 15, 20, 30 ms) to find the shortest one that's clearly
   audible.
 
-**Still open (owner to answer before milestone 2 wiring):**
+**The part:** DB Products TDB05LFPN (also sold as Jameco ValuePro). Per
+distributor listings (Jameco, Octopart; no manufacturer datasheet read):
+bare 2-pin active **magnetic** buzzer, 5 V rated (4–7 V range), **30 mA**,
+**2300 Hz**, 85 dBA. 2.3 kHz is inside the hard-to-locate band.
 
-1. **Bare 2-leg buzzer or 3-pin module?**
-   - **Bare:** check the current rating (often printed on the sticker or in
-     the listing; typical 5 V parts draw ~20–35 mA). The pin's absolute
-     maximum is 40 mA and the output voltage is only specified at 10 mA, so
-     above ~15 mA it should go through a transistor. A PNP 2N3906 as a
-     high-side switch works (1 kΩ base resistor, emitter to 5 V, buzzer
-     from collector to GND) but makes the drive **active-LOW**.
-   - **Module:** the polarity question from before comes back. Many active
-     modules use a PNP (S8550 / `2TY` / 9012) and are **low-level
-     triggered**. NPN (S8050 / `J3Y` / 9013) means high-level triggered.
-     Some modules print "L" or "H" or "low level trigger". A module's own
-     transistor also takes care of the current.
-2. **Bench check:** with VCC and GND connected, tie SIG to GND, then to 5 V.
-   Whichever level makes it beep continuously is the "on" level.
+**Drive: through the 2N3906, not straight from the pin.** 30 mA is under
+the pin's 40 mA absolute maximum but three times the 10 mA the output
+voltage is specified at, and it would run for the life of the device. The
+transistor costs two resistors.
 
-| On level | Pull resistor on SIG | Idle level | Config |
-|----------|---------------------|------------|--------|
-| HIGH | 10 kΩ to GND | LOW | `BUZZER_ACTIVE_LOW 0` |
-| LOW | 10 kΩ to 5 V | HIGH | `BUZZER_ACTIVE_LOW 1` |
+    5 V ──────────────┬──────────┐
+                      │          │
+                    10 kΩ        E
+                      │        ┌─┘
+    PB1 (pin 6) ──────┴─ 1 kΩ ─B   2N3906 (PNP)
+                               └─┐
+                                 C
+                                 │
+                        ┌────────┤
+                        │        │
+               1N4148  ─┴─      (+)
+          (cathode up)  ▲    TDB05LFPN
+                        │       (−)
+                        │        │
+    GND ────────────────┴────────┘
+
+- PB1 **LOW → buzzer on**, PB1 HIGH → off. So `BUZZER_ACTIVE_LOW 1`, idle
+  level HIGH.
+- 10 kΩ from PB1 to 5 V keeps the transistor off from reset until the
+  firmware runs.
+- 1 kΩ base resistor: ≈ 4.3 mA base current, plenty for 30 mA collector
+  current.
+- 1N4148 (or any small diode) across the buzzer, cathode to (+): cheap
+  insurance against the coil's switch-off spike. The buzzer may have
+  internal protection, but that isn't confirmed.
+- Mind the buzzer's (+) marking.
 
 ## 7. Smaller risks (no action needed now)
 
