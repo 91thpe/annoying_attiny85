@@ -260,6 +260,6 @@ ArduinoISP instead of the Mega. Differences from the handoff's §8:
    (`env:attiny85_test`). Code done, host tests pass. Owner chose to skip
    the listening test; beep length raised from 15 to 20 ms as a precaution.
 4. Full schedule build (quiet period, random intervals, seeding,
-   sleep). Code done (`env:attiny85`), host tests pass; waiting for the
-   owner's bench run.
-5. README (ASCII wiring, programming, build/flash, tuning).
+   sleep). **Done** (owner: first activation after ~10 min). Later changed
+   to one burst per activation at the owner's request.
+5. README (ASCII wiring, programming, build/flash, tuning). **Done.**
