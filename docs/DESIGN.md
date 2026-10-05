@@ -206,6 +206,30 @@ matches the original plan.
 Fallback: the 2N3906 as a high-side switch also works, but inverts the
 logic (LOW = on).
 
+## 6b. Programmer: Arduino Micro, not the Mega
+
+The owner flashes with an **Arduino Micro** (ATmega32U4, 5 V) running
+ArduinoISP instead of the Mega. Differences from the handoff's §8:
+
+| Micro | ATtiny85 pin |
+|-------|--------------|
+| MO (MOSI) | 5 (PB0) |
+| MI (MISO) | 6 (PB1) |
+| SCK | 7 (PB2) |
+| D10 (target reset, per ArduinoISP) | 1 (PB5/RESET) |
+| 5V | 8 (VCC) |
+| GND | 4 (GND) |
+
+- The SPI lines are the pins marked MO / MI / SCK (or the 6-pin ICSP
+  header), **not** D11–D13.
+- **No 10 µF capacitor on the Micro's RESET.** The 32U4 has native USB and
+  doesn't auto-reset when the port opens (only on a 1200-baud "touch").
+- `-c stk500v1` is correct here; `-c arduino` would try a DTR reset that
+  doesn't apply to the 32U4.
+- The Micro's COM port number can differ from the Mega's, and changes
+  while the Micro is in its bootloader. Use the port it shows while running
+  ArduinoISP.
+
 ## 7. Smaller risks (no action needed now)
 
 - **No brown-out detection** (fuses unchanged). A jumper that bounces or a
