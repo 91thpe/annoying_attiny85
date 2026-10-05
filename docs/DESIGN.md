@@ -250,8 +250,11 @@ ArduinoISP instead of the Mega. Differences from the handoff's §8:
 
 ## 8. Milestone plan
 
-1. Design notes (this file). Waiting for review.
-2. "Hello": `platformio.ini`, one short beep every 2 s on PB1. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
+1. Design notes (this file). Done.
+2. "Hello": `platformio.ini`, one short beep every 2 s on PB1. **Done**
+   (owner heard a beep every 2 s through the MPSA42). Caveat: this chip
+   already had CKDIV8 off, so the test does not prove the `CLKPR` write on
+   a factory-fresh chip. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
    and polarity.
 3. Cricket-ish profile + syllable-length ladder in `TEST_MODE`.
 4. Full schedule build (quiet period, random intervals, seeding,

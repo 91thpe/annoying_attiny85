@@ -33,8 +33,8 @@ int main(void)
     buzzer_off();
     DDRB |= _BV(BUZZER_PIN);
 
-    /* Factory fuses give 8 MHz / 8 = 1 MHz. Drop the divider to run at
-     * 8 MHz (F_CPU). avr-libc does the timed CLKPR sequence in asm. */
+    /* Run at 8 MHz (F_CPU) whatever CKDIV8 says: a factory chip boots at
+     * 8 MHz / 8 = 1 MHz. avr-libc does the timed CLKPR sequence in asm. */
     clock_prescale_set(clock_div_1);
 
     for (;;) {
