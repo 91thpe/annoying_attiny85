@@ -12,8 +12,8 @@ Anything marked **VERIFY** has not been tested on hardware yet.
 | Interval | uniform in [300, 900] s, counted from the end of the previous sound | Owner |
 | Fuses | Factory default, never touched (8 MHz RC, CKDIV8 on, BOD off) | Owner |
 | CPU clock | 8 MHz, set at runtime via `CLKPR` | Handoff §5.1 |
-| Buzzer | Passive transducer wired straight to SIG/GND (no driver), active-HIGH, `BUZZER_PASSIVE = 1` | Owner (load type: see §6) |
-| Signal pin | PB1 / OC1A (DIP pin 6), Timer1 | Handoff §5.2 |
+| Buzzer | **Active** buzzer (own oscillator, fixed pitch), `BUZZER_PASSIVE = 0`. Bare part or module, and polarity: see §6 | Owner |
+| Signal pin | PB1 (DIP pin 6), plain on/off GPIO | Handoff §5.2 |
 | First profile | Cricket-ish only | Handoff §4.2 |
 
 ## 2. Toolchain
@@ -60,6 +60,11 @@ Anything marked **VERIFY** has not been tested on hardware yet.
   on Windows, which isn't worth setting up for this).
 
 ## 3. Tone generation on Timer1
+
+> **Parked.** The owner switched to an active buzzer, so the firmware only
+> switches PB1 on and off. This section stays as the reference for the
+> `BUZZER_PASSIVE = 1` path if a passive piezo is used later. PB1 is kept
+> as the signal pin so that path stays open.
 
 ATtiny85 Timer1 runs from the system clock through a prescaler
 N ∈ {1, 2, 4, …, 16384} (`CS13:0`), with `OCR1C` as TOP.
@@ -133,39 +138,47 @@ PRNG: xorshift32 (state never zero). Ranges are drawn by rejection
 sampling: reject draws ≥ the largest multiple of the range, then take
 `%`. All of this goes in host-testable code.
 
-## 6. Buzzer drive: polarity settled, load type still open
+## 6. Buzzer: active, details still open
 
-**Settled (owner, after inspecting the module):** the module has no
-driver. SIG goes straight to one leg of the 2-leg transducer, and GND to
-the other. VCC is unconnected. So PB1 drives the transducer directly:
+The first passive transducer turned out to have no driver (SIG wired
+straight to the transducer). Rather than settle piezo vs coil, the owner
+switched to an **active buzzer**. Consequences:
 
-- Active-HIGH. **10 kΩ pull-down from SIG to GND, idle level LOW**, as the
-  handoff planned. The `BUZZER_ACTIVE_LOW` switch is dropped.
-- It's passive: a steady 5 V gives one click, not a tone.
+**What changes in the sound design**
 
-**Still open: piezo or magnetic?** This decides whether the pin can drive
-it directly. The ATtiny85's absolute maximum is 40 mA per pin (datasheet,
-Electrical Characteristics). The output-high voltage is only specified at
-10 mA load (V_OH ≥ 4.3 V at 5 V supply).
+- Pitch is fixed by the buzzer (typically ~2.3–2.7 kHz for a 12 mm part,
+  which happens to sit in the hard-to-locate band). No ±pitch variation, no
+  Tweet sweep, no `TEST_MODE` frequency sweep.
+- Variation comes from timing only: number of chirps, syllables per chirp,
+  on/off lengths, small jitter on each.
+- Profiles that still work: Cricket-ish (rhythm only), Lone chirp, Tick.
+- **Start-up time:** an active buzzer's oscillator needs a few ms to reach
+  full volume. 15 ms syllables may come out softer or smeared, and 1–2 ms
+  ticks may be inaudible. `TEST_MODE` will play a ladder of syllable lengths
+  (e.g. 5, 10, 15, 20, 30 ms) to find the shortest one that's clearly
+  audible.
 
-| Type | DC resistance across the legs | Direct drive from PB1 |
-|------|-------------------------------|-----------------------|
-| Piezo (ceramic disc) | Open circuit (MΩ) | Fine. Add a 100–220 Ω series resistor to limit the charging spikes |
-| Magnetic (coil) | About 10–50 Ω | **Not allowed.** 5 V / 16 Ω = 300 mA. Needs a transistor |
+**Still open (owner to answer before milestone 2 wiring):**
 
-**Check:** unplug the module and measure the resistance across the
-transducer's two legs (or SIG to GND on the module).
+1. **Bare 2-leg buzzer or 3-pin module?**
+   - **Bare:** check the current rating (often printed on the sticker or in
+     the listing; typical 5 V parts draw ~20–35 mA). The pin's absolute
+     maximum is 40 mA and the output voltage is only specified at 10 mA, so
+     above ~15 mA it should go through a transistor. A PNP 2N3906 as a
+     high-side switch works (1 kΩ base resistor, emitter to 5 V, buzzer
+     from collector to GND) but makes the drive **active-LOW**.
+   - **Module:** the polarity question from before comes back. Many active
+     modules use a PNP (S8550 / `2TY` / 9012) and are **low-level
+     triggered**. NPN (S8050 / `J3Y` / 9013) means high-level triggered.
+     Some modules print "L" or "H" or "low level trigger". A module's own
+     transistor also takes care of the current.
+2. **Bench check:** with VCC and GND connected, tie SIG to GND, then to 5 V.
+   Whichever level makes it beep continuously is the "on" level.
 
-A hint that it's piezo: it clicks only when SIG goes *to* 5 V. A coil would
-also click when the voltage is removed, because its current stops abruptly. A
-piezo left floating just stays charged. This isn't conclusive; the
-resistance measurement is.
-
-If it turns out to be magnetic: drive it from a transistor (the spare
-2N3906 PNP works as a high-side switch, which makes the drive active-LOW
-again: 1 kΩ base resistor, emitter to 5 V, coil from collector to GND, and
-a flyback diode across the coil). Or swap in a piezo transducer, which is
-simpler.
+| On level | Pull resistor on SIG | Idle level | Config |
+|----------|---------------------|------------|--------|
+| HIGH | 10 kΩ to GND | LOW | `BUZZER_ACTIVE_LOW 0` |
+| LOW | 10 kΩ to 5 V | HIGH | `BUZZER_ACTIVE_LOW 1` |
 
 ## 7. Smaller risks (no action needed now)
 
@@ -184,10 +197,9 @@ simpler.
 ## 8. Milestone plan
 
 1. Design notes (this file). Waiting for review.
-2. "Hello": `platformio.ini`, one 2.7 kHz beep every 2 s on PB1 via
-   Timer1. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
+2. "Hello": `platformio.ini`, one short beep every 2 s on PB1. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
    and polarity.
-3. Cricket-ish profile + sweep in `TEST_MODE`.
+3. Cricket-ish profile + syllable-length ladder in `TEST_MODE`.
 4. Full schedule build (quiet period, random intervals, seeding,
    sleep).
 5. README (ASCII wiring, programming, build/flash, tuning).
