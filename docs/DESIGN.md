@@ -145,7 +145,8 @@ the other. VCC is unconnected. So PB1 drives the transducer directly:
 
 **Still open: piezo or magnetic?** This decides whether the pin can drive
 it directly. The ATtiny85's absolute maximum is 40 mA per pin (datasheet,
-Electrical Characteristics), and the output-high voltage is only specified up to 20 mA.
+Electrical Characteristics). The output-high voltage is only specified at
+10 mA load (V_OH ≥ 4.3 V at 5 V supply).
 
 | Type | DC resistance across the legs | Direct drive from PB1 |
 |------|-------------------------------|-----------------------|
