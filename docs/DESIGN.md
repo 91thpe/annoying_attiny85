@@ -224,8 +224,12 @@ ArduinoISP instead of the Mega. Differences from the handoff's §8:
   header), **not** D11–D13.
 - **No 10 µF capacitor on the Micro's RESET.** The 32U4 has native USB and
   doesn't auto-reset when the port opens (only on a 1200-baud "touch").
-- `-c stk500v1` is correct here; `-c arduino` would try a DTR reset that
-  doesn't apply to the 32U4.
+- **Use `-c arduino`, not `-c stk500v1`.** The 32U4's USB serial only
+  transmits once the host asserts DTR. avrdude 6.3 on Windows with
+  `stk500v1` leaves DTR off, so the Micro never answers ("not in sync").
+  `-c arduino` sets DTR. On the 32U4 that doesn't reset the board (only a
+  1200-baud touch does). Arduino IDE's "Arduino as ISP (ATmega32U4)"
+  programmer uses the same protocol. Found on the owner's bench.
 - The Micro's COM port number can differ from the Mega's, and changes
   while the Micro is in its bootloader. Use the port it shows while running
   ArduinoISP.
