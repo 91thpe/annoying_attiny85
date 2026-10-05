@@ -185,7 +185,7 @@ matches the original plan.
                        C
     PB1 (pin 6) ─┬─ 1 kΩ ─B   MPSA42 (NPN)
                  │         E
-               10 kΩ       │
+               15 kΩ       │
                  │         │
     GND ─────────┴─────────┘
 
@@ -193,7 +193,7 @@ matches the original plan.
   level LOW.
 - 1 kΩ base resistor: ≈ 4.3 mA base current, a forced gain of ~7 at
   30 mA. Comfortably saturated even at the datasheet's minimum hFE.
-- 10 kΩ from PB1 to GND keeps the transistor off from reset until the
+- 15 kΩ (anything 10–47 kΩ works) from PB1 to GND keeps the transistor off from reset until the
   firmware runs.
 - Buzzer sees about 5 V − 0.2…0.5 V ≈ 4.5–4.8 V, inside its 4–7 V range.
 - 1N4148 (or any small diode) across the buzzer, cathode to 5 V: cheap
@@ -210,7 +210,7 @@ logic (LOW = on).
 ## 7. Smaller risks (no action needed now)
 
 - **No brown-out detection** (fuses unchanged). A jumper that bounces or a
-  slow 5 V ramp could start the chip in a bad state. The 10 kΩ reset
+  slow 5 V ramp could start the chip in a bad state. The 15 kΩ reset
   pull-up, 100 nF decoupling, and 10 µF bulk capacitor mitigate this. If
   the device ever runs erratically after power-on, BOD at 2.7 V
   (`BODLEVEL = 101`) is the one fuse change worth considering. It's safe
