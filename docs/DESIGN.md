@@ -138,7 +138,7 @@ PRNG: xorshift32 (state never zero). Ranges are drawn by rejection
 sampling: reject draws ≥ the largest multiple of the range, then take
 `%`. All of this goes in host-testable code.
 
-## 6. Buzzer: active TDB05LFPN, driven through a PNP
+## 6. Buzzer: active TDB05LFPN, driven through an NPN
 
 The first passive transducer turned out to have no driver (SIG wired
 straight to the transducer). Rather than settle piezo vs coil, the owner
@@ -163,37 +163,49 @@ distributor listings (Jameco, Octopart; no manufacturer datasheet read):
 bare 2-pin active **magnetic** buzzer, 5 V rated (4–7 V range), **30 mA**,
 **2300 Hz**, 85 dBA. 2.3 kHz is inside the hard-to-locate band.
 
-**Drive: through the 2N3906, not straight from the pin.** 30 mA is under
-the pin's 40 mA absolute maximum but three times the 10 mA the output
-voltage is specified at, and it would run for the life of the device. The
-transistor costs two resistors.
+**Drive: low-side NPN, not straight from the pin.** 30 mA is under the
+pin's 40 mA absolute maximum but three times the 10 mA the output voltage
+is specified at, and it would run for the life of the device.
 
-    5 V ──────────────┬──────────┐
-                      │          │
-                    10 kΩ        E
-                      │        ┌─┘
-    PB1 (pin 6) ──────┴─ 1 kΩ ─B   2N3906 (PNP)
-                               └─┐
-                                 C
-                                 │
-                        ┌────────┤
-                        │        │
-               1N4148  ─┴─      (+)
-          (cathode up)  ▲    TDB05LFPN
-                        │       (−)
-                        │        │
-    GND ────────────────┴────────┘
+Transistor: the owner's TO-92 parts marked **A42** = MPSA42 (B331 is a lot
+/ date code). High-voltage NPN, but fine as a 30 mA switch: hFE ≥ 40 at
+30 mA, V_CE(sat) ≤ 0.5 V at 20 mA / 2 mA base, 500 mA max
+([EIC datasheet](https://datasheet.lcsc.com/lcsc/2204021730_EIC-Semicon-MPSA42_C2978815.pdf),
+[onsemi](https://www.mouser.com/datasheet/2/149/MPSA42-196155.pdf)).
+Preferred over the 2N3906 because it keeps the logic active-HIGH, which
+matches the original plan.
 
-- PB1 **LOW → buzzer on**, PB1 HIGH → off. So `BUZZER_ACTIVE_LOW 1`, idle
-  level HIGH.
-- 10 kΩ from PB1 to 5 V keeps the transistor off from reset until the
+    5 V ───────────────┬──────────┐
+                       │          │
+                      (+)      1N4148
+                   TDB05LFPN  (cathode to 5 V)
+                      (−)         │
+                       ├──────────┘
+                       │
+                       C
+    PB1 (pin 6) ─┬─ 1 kΩ ─B   MPSA42 (NPN)
+                 │         E
+               10 kΩ       │
+                 │         │
+    GND ─────────┴─────────┘
+
+- PB1 **HIGH → buzzer on**, PB1 LOW → off. `BUZZER_ACTIVE_LOW 0`, idle
+  level LOW.
+- 1 kΩ base resistor: ≈ 4.3 mA base current, a forced gain of ~7 at
+  30 mA. Comfortably saturated even at the datasheet's minimum hFE.
+- 10 kΩ from PB1 to GND keeps the transistor off from reset until the
   firmware runs.
-- 1 kΩ base resistor: ≈ 4.3 mA base current, plenty for 30 mA collector
-  current.
-- 1N4148 (or any small diode) across the buzzer, cathode to (+): cheap
-  insurance against the coil's switch-off spike. The buzzer may have
-  internal protection, but that isn't confirmed.
-- Mind the buzzer's (+) marking.
+- Buzzer sees about 5 V − 0.2…0.5 V ≈ 4.5–4.8 V, inside its 4–7 V range.
+- 1N4148 (or any small diode) across the buzzer, cathode to 5 V: cheap
+  insurance against the coil's switch-off spike. Internal protection in
+  the buzzer isn't confirmed.
+- **Pinout:** MPSA42 in TO-92 is usually E-B-C (flat face toward you, legs
+  down, left to right), but check the maker's datasheet or a meter's diode
+  test (base is the common pin of both junctions). Mind the buzzer's (+)
+  marking.
+
+Fallback: the 2N3906 as a high-side switch also works, but inverts the
+logic (LOW = on).
 
 ## 7. Smaller risks (no action needed now)
 
