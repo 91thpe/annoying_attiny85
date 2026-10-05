@@ -144,8 +144,8 @@ the other. VCC is unconnected. So PB1 drives the transducer directly:
 - It's passive: a steady 5 V gives one click, not a tone.
 
 **Still open: piezo or magnetic?** This decides whether the pin can drive
-it directly. The ATtiny85's absolute maximum is 40 mA per pin (datasheet
-§21), and the output-high voltage is only specified up to 20 mA.
+it directly. The ATtiny85's absolute maximum is 40 mA per pin (datasheet,
+Electrical Characteristics), and the output-high voltage is only specified up to 20 mA.
 
 | Type | DC resistance across the legs | Direct drive from PB1 |
 |------|-------------------------------|-----------------------|
