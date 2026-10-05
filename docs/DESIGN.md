@@ -256,7 +256,9 @@ ArduinoISP instead of the Mega. Differences from the handoff's §8:
    already had CKDIV8 off, so the test does not prove the `CLKPR` write on
    a factory-fresh chip. Flash over the Mega. Confirms toolchain, ISP rig, clock, pin,
    and polarity.
-3. Cricket-ish profile + syllable-length ladder in `TEST_MODE`.
+3. Cricket-ish profile + syllable-length ladder in `TEST_MODE`
+   (`env:attiny85_test`). Code done, host tests pass; waiting for the
+   owner's listening test.
 4. Full schedule build (quiet period, random intervals, seeding,
    sleep).
 5. README (ASCII wiring, programming, build/flash, tuning).
