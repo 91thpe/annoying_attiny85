@@ -36,9 +36,18 @@ void loop()
 {
     // random(a, b) returns a..b-1; on the ESP32 it draws from the hardware RNG
     uint32_t wait_s = random(INTERVAL_MIN_S, INTERVAL_MAX_S + 1);
-    Serial.printf("next beep in %lu s (%lu min %lu s)\n",
-                  (unsigned long)wait_s, (unsigned long)(wait_s / 60),
-                  (unsigned long)(wait_s % 60));
+    Serial.printf("next beep in %lu min %lu s\n",
+                  (unsigned long)(wait_s / 60), (unsigned long)(wait_s % 60));
+
+    // Wait in 1-minute steps so a monitor opened later still sees progress.
+    while (wait_s > 60) {
+        delay(60 * 1000UL);
+        wait_s -= 60;
+        Serial.printf("  %lu min %lu s left\n",
+                      (unsigned long)(wait_s / 60), (unsigned long)(wait_s % 60));
+    }
     delay(wait_s * 1000UL);
+
     beep(BEEP_MS);
+    Serial.println("beep");
 }
